@@ -1,0 +1,7 @@
+apiVersion: v2
+name: payments-api
+description: Sample payments microservice for the Collibra Edge enterprise lab
+type: application
+version: 0.1.0          # chart version: bump when templates change
+appVersion: "0.1.0"     # application (image) version
+kubeVersion: ">=1.33.0-0"

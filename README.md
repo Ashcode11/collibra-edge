@@ -35,7 +35,13 @@ scripts/lab-up.sh          # create/start the k3d lab cluster
 scripts/db-load.sh         # deploy PostgreSQL bank_core + MySQL crm with synthetic data
 scripts/db-verify.sh       # 28 checks: privileges, synthetic-data guarantees, integrity
 infrastructure/floci/smoke-test.sh   # 24 Floci AWS/Azure checks
+scripts/tf.sh lab plan -out=tfplan   # Terraform against Floci (safe wrapper)
+scripts/tf-verify.sh       # 15 checks: no secrets in state, controls, drift
+scripts/secrets-sync.sh    # Secrets Manager -> Kubernetes Secrets
+curl http://payments.lab.localhost:18000/api/v1/payments/1   # payments-api via Helm + ingress
 ```
+
+New here? Start with [docs/LAB-GUIDE.md](docs/LAB-GUIDE.md).
 
 ## Safety rules
 - Every kubectl/helm command uses `--context k3d-cel-lab`. Never the real `<real-aks-context>`.

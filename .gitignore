@@ -52,3 +52,9 @@ installer-*.tgz
 edge-secret.yaml
 registries.yaml
 proxy.properties
+
+# ---- Local caches ----
+.cache/
+
+# ---- Python virtualenvs ----
+.venv/

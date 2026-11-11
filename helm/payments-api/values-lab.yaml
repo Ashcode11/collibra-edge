@@ -1,0 +1,5 @@
+# Lab environment overrides
+config:
+  LOG_LEVEL: INFO
+ingress:
+  enabled: true

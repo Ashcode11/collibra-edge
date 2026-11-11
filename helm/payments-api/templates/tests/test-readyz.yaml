@@ -1,0 +1,27 @@
+# `helm test` runs this pod: passes only if the service answers /readyz (app + DB).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "payments-api.fullname" . }}-test-readyz
+  labels: {{- include "payments-api.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: curl
+      image: curlimages/curl:8.11.1
+      args: ["-fsS", "--max-time", "5", "http://{{ include "payments-api.fullname" . }}:{{ .Values.service.port }}/readyz"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: { drop: ["ALL"] }
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }

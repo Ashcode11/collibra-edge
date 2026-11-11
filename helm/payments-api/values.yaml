@@ -1,0 +1,39 @@
+# Secure, production-leaning defaults. Environment files (values-lab.yaml) override.
+image:
+  repository: cel/payments-api
+  tag: ""                 # empty => Chart.appVersion
+  pullPolicy: IfNotPresent
+
+replicaCount: 2           # ignored when autoscaling.enabled
+
+config:                   # non-secret settings -> ConfigMap
+  APP_ENV: lab
+  LOG_LEVEL: INFO
+  DB_HOST: bank-core-pg.data.svc.cluster.local
+  DB_PORT: "5432"
+  DB_NAME: bank_core
+  DB_POOL_MAX: "5"
+
+database:
+  existingSecret: payments-api-db   # keys: username, password (synced from Secrets Manager)
+
+service:
+  port: 80
+
+resources:
+  requests: { cpu: 50m, memory: 96Mi }
+  limits:   { cpu: 500m, memory: 192Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  minAvailable: 1
+
+ingress:
+  enabled: false
+  className: traefik
+  host: payments.lab.localhost

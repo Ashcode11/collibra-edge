@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "payments-api.fullname" . }}
+  labels: {{- include "payments-api.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}   # node drains keep >=1 pod serving
+  selector:
+    matchLabels: {{- include "payments-api.selectorLabels" . | nindent 6 }}

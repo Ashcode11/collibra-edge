@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "payments-api.fullname" . }}
+  labels: {{- include "payments-api.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "payments-api.selectorLabels" . | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.service.port }}, targetPort: http }

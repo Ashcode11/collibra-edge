@@ -113,6 +113,8 @@ spec:
               valueFrom: { secretKeyRef: { name: mysql-admin, key: password } }
             - name: INGEST_PASSWORD
               valueFrom: { secretKeyRef: { name: mysql-collibra-ingest, key: password } }
+            - name: CRM_APP_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql-crm-app, key: password } }
           command: ["/bin/bash", "-ec"]
           args:
             - |
@@ -131,6 +133,9 @@ spec:
               -- Metadata only: REFERENCES makes tables/columns visible in
               -- information_schema without granting SELECT on any row.
               GRANT REFERENCES, SHOW VIEW ON crm.* TO 'collibra_ingest'@'%';
+              -- Re-apply crm_app's password from its Secret (rotation). The image
+              -- entrypoint only sets it on the very first boot.
+              ALTER USER 'crm_app'@'%' IDENTIFIED BY '${CRM_APP_PASSWORD}';
               -- The image entrypoint grants crm_app ALL on crm; cut it back to DML.
               REVOKE ALL PRIVILEGES ON crm.* FROM 'crm_app'@'%';
               GRANT SELECT, INSERT, UPDATE ON crm.* TO 'crm_app'@'%';

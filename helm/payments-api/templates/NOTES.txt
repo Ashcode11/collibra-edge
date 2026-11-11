@@ -1,0 +1,5 @@
+payments-api {{ .Values.image.tag | default .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" (revision {{ .Release.Revision }}).
+{{- if .Values.ingress.enabled }}
+Try:  curl http://{{ .Values.ingress.host }}:18000/api/v1/payments/1
+{{- end }}
+Test: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}

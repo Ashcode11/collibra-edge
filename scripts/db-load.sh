@@ -11,6 +11,9 @@ echo ">> Namespace, quota, limits"
 k apply -f "$REPO/kubernetes/namespaces/data.yaml"
 
 echo ">> Secrets"
+# Source of truth (Phase 5+): Floci Secrets Manager, provisioned by Terraform.
+# Fallback (and break-glass superusers): locally generated random secrets.
+if "$REPO/scripts/secrets-sync.sh"; then :; else echo "  (Secrets Manager not available - using local secrets only)"; fi
 "$REPO/scripts/create-db-secrets.sh"
 
 echo ">> Recreate load Jobs (Jobs are immutable)"
