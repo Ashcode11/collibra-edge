@@ -32,6 +32,9 @@ A local, enterprise-style lab that shows how a large bank could architect, secur
 ```bash
 scripts/lab-status.sh      # what is running
 scripts/lab-up.sh          # create/start the k3d lab cluster
+scripts/db-load.sh         # deploy PostgreSQL bank_core + MySQL crm with synthetic data
+scripts/db-verify.sh       # 28 checks: privileges, synthetic-data guarantees, integrity
+infrastructure/floci/smoke-test.sh   # 24 Floci AWS/Azure checks
 ```
 
 ## Safety rules

@@ -1,0 +1,40 @@
+# Data tier for the lab: kubectl --context=k3d-cel-lab apply -k database/
+# Prerequisites: kubernetes/namespaces/data.yaml and scripts/create-db-secrets.sh
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+
+resources:
+  - manifests/postgres.yaml
+  - manifests/mysql.yaml
+  - manifests/load-jobs.yaml
+
+# SQL and config files become ConfigMaps. The name gets a content hash
+# suffix, so changing a file changes the name, and every workload that
+# mounts it is rolled automatically. No stale config.
+configMapGenerator:
+  - name: bank-core-pg-schema
+    files:
+      - schemas/postgres/00_bootstrap.sql
+      - schemas/postgres/01_schema.sql
+      - schemas/postgres/02_views.sql
+      - schemas/postgres/03_grants.sql
+  - name: bank-core-pg-data
+    files:
+      - sample-data/postgres/10_reference_data.sql
+      - sample-data/postgres/20_generate.sql
+  - name: crm-mysql-schema
+    files:
+      - schemas/mysql/01_crm_schema.sql
+  - name: crm-mysql-data
+    files:
+      - sample-data/mysql/20_generate.sql
+  - name: crm-mysql-config
+    files:
+      - lab.cnf=config/mysql-lab.cnf
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      lab.cel/phase: "4"
+    includeSelectors: false

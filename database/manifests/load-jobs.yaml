@@ -1,0 +1,152 @@
+# One-shot Jobs that build schemas, roles and synthetic data.
+# Jobs are immutable once created, so scripts/db-load.sh deletes and
+# re-creates them on each run (Argo CD would run them as Sync hooks).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bank-core-pg-load
+  labels:
+    app.kubernetes.io/name: bank-core-pg-load
+    app.kubernetes.io/part-of: bank-data
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bank-core-pg-load
+        app.kubernetes.io/part-of: bank-data
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        lab.cel/role: worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: load
+          image: postgres:17.11-alpine3.24
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 128Mi }
+          env:
+            - { name: PGHOST, value: bank-core-pg }
+            - { name: PGDATABASE, value: bank_core }
+            - { name: PGAPPNAME, value: bank-core-pg-load }
+            - name: PG_ADMIN_USER
+              valueFrom: { secretKeyRef: { name: pg-admin, key: username } }
+            - name: PG_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-admin, key: password } }
+            - name: PG_MIGRATOR_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-migrator, key: password } }
+            - name: PG_APP_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-app, key: password } }
+            - name: PG_INGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-collibra-ingest, key: password } }
+            - name: PG_PROFILE_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-collibra-profile, key: password } }
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              echo "waiting for PostgreSQL..."
+              until pg_isready -q; do sleep 2; done
+              as_admin()    { PGUSER="$PG_ADMIN_USER" PGPASSWORD="$PG_ADMIN_PASSWORD" psql -X -v ON_ERROR_STOP=1 "$@"; }
+              as_migrator() { PGUSER=bank_migrator   PGPASSWORD="$PG_MIGRATOR_PASSWORD" psql -X -v ON_ERROR_STOP=1 "$@"; }
+              echo "== 1/4 roles";      as_admin    -f /sql/00_bootstrap.sql
+              echo "== 2/4 schema";     as_migrator -f /sql/01_schema.sql -f /sql/02_views.sql -f /data/10_reference_data.sql
+              echo "== 3/4 grants";     as_admin    -f /sql/03_grants.sql
+              echo "== 4/4 data";       as_migrator -f /data/20_generate.sql
+              echo "bank_core load complete"
+          volumeMounts:
+            - { name: schema, mountPath: /sql, readOnly: true }
+            - { name: data,   mountPath: /data, readOnly: true }
+      volumes:
+        - name: schema
+          configMap: { name: bank-core-pg-schema }
+        - name: data
+          configMap: { name: bank-core-pg-data }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crm-mysql-load
+  labels:
+    app.kubernetes.io/name: crm-mysql-load
+    app.kubernetes.io/part-of: bank-data
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crm-mysql-load
+        app.kubernetes.io/part-of: bank-data
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        lab.cel/role: worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: load
+          image: mysql:8.4.13
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 500m, memory: 128Mi }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql-admin, key: password } }
+            - name: INGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: mysql-collibra-ingest, key: password } }
+          command: ["/bin/bash", "-ec"]
+          args:
+            - |
+              # Credentials go into a private option file, never onto the command line.
+              umask 077
+              printf '[client]\nhost=crm-mysql\nuser=root\npassword=%s\n' "$MYSQL_ROOT_PASSWORD" > /tmp/root.cnf
+              M="mysql --defaults-extra-file=/tmp/root.cnf --table"
+              echo "waiting for MySQL..."
+              until mysqladmin --defaults-extra-file=/tmp/root.cnf ping --silent 2>/dev/null; do sleep 3; done
+              echo "== 1/3 schema"; $M < /sql/01_crm_schema.sql
+              echo "== 2/3 users"
+              $M <<SQL
+              CREATE USER IF NOT EXISTS 'collibra_ingest'@'%';
+              ALTER USER 'collibra_ingest'@'%' IDENTIFIED BY '${INGEST_PASSWORD}'
+                WITH MAX_USER_CONNECTIONS 5;
+              -- Metadata only: REFERENCES makes tables/columns visible in
+              -- information_schema without granting SELECT on any row.
+              GRANT REFERENCES, SHOW VIEW ON crm.* TO 'collibra_ingest'@'%';
+              -- The image entrypoint grants crm_app ALL on crm; cut it back to DML.
+              REVOKE ALL PRIVILEGES ON crm.* FROM 'crm_app'@'%';
+              GRANT SELECT, INSERT, UPDATE ON crm.* TO 'crm_app'@'%';
+              FLUSH PRIVILEGES;
+              SQL
+              echo "== 3/3 data"; $M < /data/20_generate.sql
+              rm -f /tmp/root.cnf
+              echo "crm load complete"
+          volumeMounts:
+            - { name: schema, mountPath: /sql, readOnly: true }
+            - { name: data,   mountPath: /data, readOnly: true }
+            - { name: tmp,    mountPath: /tmp }
+      volumes:
+        - name: schema
+          configMap: { name: crm-mysql-schema }
+        - name: data
+          configMap: { name: crm-mysql-data }
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 1Mi }

@@ -1,0 +1,51 @@
+# Namespace for the bank's data tier (synthetic PostgreSQL core banking + MySQL CRM).
+# In a real bank this maps to a segregated "data zone" — the zone a Collibra Edge site
+# would be allowed to reach over JDBC, and nothing else.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: data
+  labels:
+    lab.cel/zone: data
+    lab.cel/data-classification: confidential-synthetic
+    # Pod Security Admission: reject any pod that runs as root, keeps Linux
+    # capabilities, allows privilege escalation or lacks a seccomp profile.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+# Hard ceiling for the whole namespace (protects the 2 GiB worker node).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: data-quota
+  namespace: data
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "3"
+    limits.memory: 1536Mi
+    persistentvolumeclaims: "4"
+    requests.storage: 6Gi
+    services.nodeports: "0"        # nothing in the data zone may be exposed on a node port
+    services.loadbalancers: "0"
+---
+# Defaults for any container that forgets to declare resources.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: data-defaults
+  namespace: data
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 128Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        memory: 768Mi
