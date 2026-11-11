@@ -16,7 +16,7 @@
 | 2026-11-11 | DB passwords via ephemeral `random_password` + write-only `secret_string_wo` | Passwords never in state/plan (verified) |
 | 2026-11-11 | Secrets Manager = source of truth for 6 service credentials. `postgres`/`root` stay break-glass outside Terraform | Rotating superusers needs the old password. PAM vault in production |
 | 2026-11-11 | AWS endpoint `http://localhost:4566` + global `AWS_ENDPOINT_URL` in `tf.sh` | S3 Control needs a hostname. Unlisted services must never reach real AWS |
-| 2026-11-11 | GitHub repo `Ashcode11/collibra-edge` (public) added as `origin`. **Not pushed** | No credentials on this Mac; history contains personal details (email, other project names) |
+| 2026-11-11 | GitHub repo `Ashcode11/collibra-edge` (public) is `origin`. History rewritten (author `Ashcode11 <ashwanitiwari.biz@gmail.com>`, personal/environment names redacted), then pushed | Public repo: no personal details. Local backup branch `backup/pre-redaction` keeps the original |
 | 2026-11-11 | Azure Terraform not applied | azurerm needs TLS on floci-az + cert trust + vault DNS. Awaiting user decision |
 
 ## Phase status
@@ -51,7 +51,7 @@
 | # | Blocker | Owner | Impact |
 |---|---|---|---|
 | B1 | No Collibra tenant (Option B) | — | Edge site, capabilities, ingestion stay conceptual |
-| B3 | GitHub repo chosen (`Ashcode11/collibra-edge`), but no push credentials, and personal details in history | User | Blocks Phases 7–8 |
+| B3 | `gh` CLI not logged in (git push works via keychain) | User | Needed for Actions/PR commands in Phase 8 |
 | B4 | Disk 19 GB free (96%) after DB images | User | Watch it. Keep ≥10 GB free |
 | B5 | PostgreSQL not confirmed in Collibra docs for Catalog JDBC ingestion/profiling/classification (lineage is documented) | Collibra | Documented as an open question |
 | B6 | Floci Azure state is in-memory | — | Re-apply Azure Terraform after a Floci restart |
