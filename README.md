@@ -41,7 +41,7 @@ scripts/secrets-sync.sh    # Secrets Manager -> Kubernetes Secrets
 curl http://payments.lab.localhost:18000/api/v1/payments/1   # payments-api via Helm + ingress
 ```
 
-New here? Start with [docs/LAB-GUIDE.md](docs/LAB-GUIDE.md).
+New here? Start with [docs/LAB-GUIDE.md](docs/LAB-GUIDE.md) and the [architecture & use cases](docs/architecture/ARCHITECTURE.md) ([PDF](docs/architecture/Collibra-Edge-Lab-Architecture.pdf)). One-command demo: `scripts/demo-usecase.sh`.
 
 ## Safety rules
 - Every kubectl/helm command uses `--context k3d-cel-lab`. Never the real `<real-aks-context>`.
