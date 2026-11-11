@@ -1,0 +1,54 @@
+# ---- Secrets: never commit ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+*kubeconfig*
+secrets/
+*.secret.yaml
+*-secret.local.yaml
+
+# ---- Terraform ----
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*.auto.tfvars
+terraform.tfvars
+!*.tfvars.example
+.terraform.tfstate.lock.info
+# .terraform.lock.hcl IS committed (pins provider versions)
+
+# ---- Helm ----
+helm/**/charts/*.tgz
+
+# ---- Generated data ----
+database/sample-data/generated/
+*.csv.gz
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# ---- OS / editors ----
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ---- Collibra Edge artefacts (if ever downloaded) ----
+installer-*.tgz
+*-installer.tgz
+edge-secret.yaml
+registries.yaml
+proxy.properties

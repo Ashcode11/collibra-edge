@@ -1,0 +1,50 @@
+# k3d cluster definition for the Collibra Edge Enterprise Lab ("cel-lab").
+# Recreate with: k3d cluster create --config kubernetes/cluster/k3d-cel-lab.yaml
+#
+# Why k3d: it runs k3s (the same Kubernetes distribution Collibra bundles for
+# Edge-on-VM installs) as Docker containers, so a "multi-node" cluster fits on a laptop.
+# This cluster is NOT a Collibra-supported Edge platform; it hosts the lab's own workloads.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: cel-lab
+servers: 1            # control plane (API server, scheduler, controller-manager, etcd/sqlite)
+agents: 1             # one worker node, so scheduling, taints and node failure can be demonstrated
+image: rancher/k3s:v1.36.6-k3s1   # pinned; kubectl 1.37 is within the +/-1 minor skew policy
+
+kubeAPI:
+  hostIP: "127.0.0.1"   # API reachable only from this Mac
+  hostPort: "16443"     # 6443 is the conventional port; kept free to avoid clashes
+
+ports:
+  # k3d's load balancer (nginx container) -> Traefik ingress inside the cluster
+  - port: 127.0.0.1:18000:80
+    nodeFilters: [loadbalancer]
+  - port: 127.0.0.1:18443:443
+    nodeFilters: [loadbalancer]
+
+options:
+  k3s:
+    extraArgs:
+      # Control plane stays dedicated to system workloads, like a real cluster.
+      - arg: --node-taint=node-role.kubernetes.io/control-plane=true:NoSchedule
+        nodeFilters: [server:*]
+      # API audit logging (policy file is mounted by scripts/lab-up.sh)
+      - arg: --kube-apiserver-arg=audit-policy-file=/var/lib/rancher/k3s/server/audit-policy.yaml
+        nodeFilters: [server:*]
+      - arg: --kube-apiserver-arg=audit-log-path=/var/log/kubernetes/audit.log
+        nodeFilters: [server:*]
+      - arg: --kube-apiserver-arg=audit-log-maxsize=20
+        nodeFilters: [server:*]
+      - arg: --kube-apiserver-arg=audit-log-maxbackup=2
+        nodeFilters: [server:*]
+    nodeLabels:
+      - label: lab.cel/role=worker
+        nodeFilters: [agent:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true   # adds context "k3d-cel-lab" to ~/.kube/config
+    switchCurrentContext: false     # never silently change the user's current context
+  runtime:
+    # Hard caps so the lab can never starve the rest of the 4 GB Docker VM.
+    serversMemory: 1536m
+    agentsMemory: 2048m

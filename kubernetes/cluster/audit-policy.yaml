@@ -1,0 +1,32 @@
+# Kubernetes API audit policy for the lab.
+# Rules are evaluated top-down; the first match wins.
+apiVersion: audit.k8s.io/v1
+kind: Policy
+omitStages: ["RequestReceived"]
+rules:
+  # Noise: health checks and read-only discovery
+  - level: None
+    nonResourceURLs: ["/healthz*", "/livez*", "/readyz*", "/version", "/openapi*", "/api*"]
+  - level: None
+    users: ["system:kube-proxy"]
+  - level: None
+    verbs: ["watch"]
+  # Secrets & configmaps: record WHO touched them, never the contents
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets", "configmaps", "serviceaccounts/token"]
+  # RBAC changes: full request body (who granted what)
+  - level: Request
+    verbs: ["create", "update", "patch", "delete"]
+    resources:
+      - group: "rbac.authorization.k8s.io"
+  # Exec/attach/port-forward into pods: always audited
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["pods/exec", "pods/attach", "pods/portforward"]
+  # Everything else that changes state
+  - level: Metadata
+    verbs: ["create", "update", "patch", "delete", "deletecollection"]
+  - level: None
